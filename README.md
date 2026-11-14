@@ -13,8 +13,8 @@ clique sur « Se connecter » et vérifie le résultat.
 | Refus - tous les champs vides | oui | message d'erreur affiché, on reste sur la page |
 | Refus - e-mail vide | oui | message d'erreur affiché, on reste sur la page |
 | Refus - mot de passe vide | oui | message d'erreur affiché, on reste sur la page |
-| Succès - connexion avec mon compte (`@compte-reel`) | non | le formulaire disparaît, on arrive sur la page d'accueil |
-| Refus - mon e-mail + mauvais mot de passe (`@compte-reel`) | non | message d'erreur affiché, on reste sur la page |
+| Succès - compte sans 2FA (`@compte-sans-2fa`) | non | le formulaire disparaît, on arrive sur la page d'accueil |
+| Refus - mon e-mail + mauvais mot de passe (`@mauvais-mdp`) | non | message d'erreur affiché, on reste sur la page |
 | 2FA - Facebook demande le code (`@compte-2fa @2fa-demande`) | non | page « vérification en deux étapes » et champ du code affichés |
 | 2FA - code incorrect `000000` (`@compte-2fa @2fa-code-faux`) | non | message d'erreur, on reste sur la page 2FA |
 | 2FA - bon code (`@compte-2fa @2fa-succes`) | non | redirection vers la page d'accueil |
@@ -32,8 +32,20 @@ au compte de quelqu'un d'autre.
 - `src/test/java/.../pages/Demo.java` - mode démo au ralenti ; `Totp.java` - calcul du code 2FA.
 - `src/test/java/.../steps/Hooks.java` - démarre/ferme Chrome avant/après chaque scénario, capture d'écran en cas d'échec.
 - `src/test/java/.../RunCucumberTest.java` - point d'entrée JUnit Platform.
-- `src/test/resources/junit-platform.properties` - exclut `@compte-reel` par défaut.
+- `src/test/resources/junit-platform.properties` - exclut les scénarios `@compte-reel` (vrai compte) par défaut.
+- `demo.sh` - démo complète de la présentation en une commande.
 - `.github/workflows/ci.yml` - lance `mvn test` (Chrome headless) à chaque push.
+
+## Présentation : une seule commande
+
+```bash
+./demo.sh
+```
+
+Chrome visible, au ralenti, dans cet ordre : formulaire affiché, e-mail inconnu,
+champs vides (x3), mon e-mail + mauvais mot de passe, code 2FA incorrect, puis
+**succès** (bon code 2FA, page d'accueil) à la fin. Identifiants lus dans
+`~/.fb-test.env` (`FB_EMAIL`, `FB_PASSWORD`, `FB_TOTP_SECRET`).
 
 ## Commandes
 
@@ -53,8 +65,8 @@ Les identifiants restent dans le terminal, jamais dans le code ni sur GitHub.
 export FB_EMAIL="mon.email@exemple.com"
 export FB_PASSWORD="mon_mot_de_passe"
 
-# Compte SANS double authentification : succès + mauvais mot de passe
-mvn test -Ddemo=true -Dcucumber.filter.tags=@compte-reel
+# Compte SANS double authentification : succès
+mvn test -Ddemo=true -Dcucumber.filter.tags=@compte-sans-2fa
 
 # Compte AVEC double authentification
 mvn test -Ddemo=true -Dcucumber.filter.tags=@compte-2fa
