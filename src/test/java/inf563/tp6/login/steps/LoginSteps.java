@@ -1,9 +1,12 @@
 package inf563.tp6.login.steps;
 
 import inf563.tp6.login.pages.LoginPage;
+import inf563.tp6.login.pages.Totp;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class LoginSteps {
 
     private LoginPage loginPage;
+    private Duration delaiAccueil = Duration.ofSeconds(20);
 
     @Given("la page de connexion Facebook est ouverte")
     public void laPageDeConnexionEstOuverte() {
@@ -64,11 +68,65 @@ public class LoginSteps {
 
     @Then("je suis connecté et redirigé vers ma page d'accueil")
     public void jeSuisConnecte() {
-        assertTrue(loginPage.estConnecte(), "le formulaire de connexion aurait du disparaitre");
+        boolean accueil = loginPage.estSurPageAccueil(Duration.ofSeconds(20));
         String url = loginPage.urlCourante();
         System.out.println("URL apres connexion : " + url);
-        assertFalse(url.contains("two_step_verification") || url.contains("checkpoint"),
-                "Facebook demande une verification de securite (2FA/checkpoint) : " + url);
-        assertFalse(url.contains("/login"), "on devrait etre sur la page d'accueil : " + url);
+        assertFalse(loginPage.pageDoubleAuthentificationAffichee(),
+                "Facebook demande la double authentification : utiliser le scenario @compte-2fa. URL : " + url);
+        assertTrue(accueil, "on devrait etre sur la page d'accueil : " + url);
+    }
+
+    // ---------- Double authentification (2FA) ----------
+
+    @Then("Facebook demande la double authentification")
+    public void facebookDemandeLaDoubleAuthentification() {
+        assertTrue(loginPage.estSurPageDoubleAuthentification(),
+                "la page de verification en deux etapes aurait du s'afficher : " + loginPage.urlCourante());
+        System.out.println("Page 2FA : " + loginPage.urlCourante());
+    }
+
+    @Then("le champ de saisie du code est affiché")
+    public void leChampDuCodeEstAffiche() {
+        assertTrue(loginPage.champCode2FA().isDisplayed(), "le champ du code a 6 chiffres devrait etre visible");
+    }
+
+    @When("je saisis le code de double authentification {string}")
+    public void jeSaisisLeCode(String code) {
+        loginPage.saisirCode2FA(code);
+    }
+
+    @When("je saisis le bon code de double authentification")
+    public void jeSaisisLeBonCode() {
+        String cle = System.getenv("FB_TOTP_SECRET");
+        if (cle != null && !cle.isBlank()) {
+            // Code calcule automatiquement a partir de la cle de l'application d'authentification.
+            loginPage.saisirCode2FA(Totp.codeActuel(cle));
+        } else if (!Hooks.headless) {
+            // Pas de cle : la personne qui presente tape (ou approuve) le code elle-meme dans Chrome.
+            System.out.println(">>> Saisissez le code 2FA (ou approuvez sur le telephone) dans Chrome : 2 minutes <<<");
+            delaiAccueil = Duration.ofMinutes(2);
+        } else {
+            throw new IllegalStateException(
+                    "Definir FB_TOTP_SECRET, ou lancer avec -Ddemo=true pour saisir le code a la main");
+        }
+    }
+
+    @Then("je suis redirigé vers ma page d'accueil")
+    public void jeSuisRedirigeVersMaPageDAccueil() {
+        boolean accueil = loginPage.estSurPageAccueil(delaiAccueil);
+        System.out.println("URL apres 2FA : " + loginPage.urlCourante());
+        assertTrue(accueil, "on devrait etre sur la page d'accueil : " + loginPage.urlCourante());
+    }
+
+    @Then("un message d'erreur sur le code est affiché")
+    public void unMessageDErreurSurLeCode() {
+        String message = loginPage.messageErreur2FA();
+        System.out.println("Message 2FA affiche par Facebook : " + message);
+        assertFalse(message.isEmpty(), "Facebook devrait refuser le code");
+    }
+
+    @Then("je reste sur la page de double authentification")
+    public void jeResteSurLaPage2FA() {
+        assertTrue(loginPage.estSurPageDoubleAuthentification(), "on devrait rester sur la page 2FA");
     }
 }

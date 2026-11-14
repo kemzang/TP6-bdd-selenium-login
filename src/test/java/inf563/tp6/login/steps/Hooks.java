@@ -1,6 +1,8 @@
 package inf563.tp6.login.steps;
 
+import inf563.tp6.login.pages.Demo;
 import io.cucumber.java.After;
+import io.cucumber.java.AfterStep;
 import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -15,13 +17,14 @@ import java.util.Map;
 public class Hooks {
 
     public static WebDriver driver;
+    public static boolean headless;
 
     @Before
     public void demarrerNavigateur() {
         WebDriverManager.chromedriver().setup();
         ChromeOptions options = new ChromeOptions();
-        // Lance Chrome visible avec -Dheadless=false (utile pour observer le scenario en local).
-        boolean headless = !"false".equals(System.getProperty("headless", "true"));
+        // Chrome visible avec -Dheadless=false, ou avec -Ddemo=true (mode demo au ralenti).
+        headless = !Demo.ACTIF && !"false".equals(System.getProperty("headless", "true"));
         if (headless) {
             options.addArguments("--headless=new");
             // En headless, Chrome s'annonce "HeadlessChrome" : on garde un user-agent de Chrome normal
@@ -37,6 +40,16 @@ public class Hooks {
         // Page Facebook en francais, meme depuis la CI GitHub (serveurs aux USA).
         options.setExperimentalOption("prefs", Map.of("intl.accept_languages", "fr-FR,fr"));
         driver = new ChromeDriver(options);
+    }
+
+    /** Mode demo : pause apres chaque etape pour laisser le temps de voir le resultat. */
+    @AfterStep
+    public void pauseDemo(Scenario scenario) {
+        Demo.pause();
+        // Capture d'ecran de chaque etape dans le rapport HTML (target/cucumber-report.html).
+        if (driver != null) {
+            scenario.attach(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES), "image/png", "etape");
+        }
     }
 
     @After

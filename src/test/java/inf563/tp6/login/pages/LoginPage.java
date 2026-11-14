@@ -64,11 +64,171 @@ public class LoginPage {
     public void login(String email, String motDePasse) {
         WebElement champEmail = driver.findElement(CHAMP_EMAIL);
         champEmail.clear();
-        champEmail.sendKeys(email);
+        Demo.taper(driver, champEmail, email);
         WebElement champMdp = driver.findElement(CHAMP_MOT_DE_PASSE);
         champMdp.clear();
-        champMdp.sendKeys(motDePasse);
-        driver.findElement(BOUTON_SE_CONNECTER).click();
+        Demo.taper(driver, champMdp, motDePasse);
+        WebElement bouton = driver.findElement(BOUTON_SE_CONNECTER);
+        Demo.surligner(driver, bouton);
+        bouton.click();
+    }
+
+    // ---------- Double authentification (2FA) ----------
+
+    private static final By CHAMP_CODE_2FA = By.cssSelector(
+            "input[autocomplete='one-time-code'], input[type='tel'], input[type='number'], input[type='text']");
+
+    /** Chemin de l'URL sans les parametres (la page d'accueil peut contenir "?checkpoint_src=..."). */
+    private static String chemin(String url) {
+        return java.net.URI.create(url).getPath();
+    }
+
+    private static boolean urlDoubleAuthentification(String url) {
+        String chemin = chemin(url);
+        return chemin.contains("two_step_verification") || chemin.contains("checkpoint")
+                || chemin.contains("approvals") || chemin.contains("two_factor");
+    }
+
+    public boolean pageDoubleAuthentificationAffichee() {
+        return urlDoubleAuthentification(driver.getCurrentUrl());
+    }
+
+    /** Attend la page "Verification en deux etapes" de Facebook. */
+    public boolean estSurPageDoubleAuthentification() {
+        try {
+            boolean ok = wait.until(d -> urlDoubleAuthentification(d.getCurrentUrl()));
+            gererCaptcha();
+            return ok;
+        } catch (org.openqa.selenium.TimeoutException e) {
+            return false;
+        }
+    }
+
+    // ---------- CAPTCHA anti-robot ----------
+
+    private boolean captchaAffiche() {
+        String texte = driver.findElement(By.tagName("body")).getText();
+        return texte.contains("caractères que vous voyez") || texte.contains("characters you see");
+    }
+
+    /**
+     * Facebook affiche un CAPTCHA quand il soupconne un robot (connexions automatisees repetees).
+     * Un CAPTCHA est fait pour bloquer les robots : on ne le contourne pas, on laisse l'humain
+     * le resoudre (mode demo / navigateur visible), puis le test continue tout seul.
+     */
+    public void gererCaptcha() {
+        if (!captchaAffiche()) {
+            return;
+        }
+        if (!Demo.ACTIF && "true".equals(System.getProperty("headless", "true"))) {
+            throw new IllegalStateException("Facebook affiche un CAPTCHA (protection anti-robot). "
+                    + "Relancer avec -Ddemo=true pour le resoudre a la main.");
+        }
+        System.out.println(">>> CAPTCHA Facebook : tapez les caracteres dans Chrome puis Continuer (3 minutes) <<<");
+        new WebDriverWait(driver, Duration.ofMinutes(3)).until(d -> !captchaAffiche());
+    }
+
+    /**
+     * Facebook affiche d'abord "Verifiez vos notifications sur un autre appareil".
+     * On passe par "Essayer d'une autre maniere" puis "Application d'authentification" puis "Continuer".
+     */
+    public WebElement champCode2FA() {
+        gererCaptcha();
+        WebElement champ = premierVisible(CHAMP_CODE_2FA);
+        if (champ != null) {
+            return champ;
+        }
+        if (cliquerSiPresent("autre mani", "autre méthode", "another way")) {
+            // Fenetre "Choisissez un moyen de confirmer qu'il s'agit de vous" : on attend qu'elle soit chargee.
+            wait.until(d -> cliquerSiPresent("pplication d’authentification", "pplication d'authentification",
+                    "uthentication app"));
+            wait.until(d -> cliquerSiPresent("Continuer", "Continue"));
+        }
+        return wait.until(d -> premierVisible(CHAMP_CODE_2FA));
+    }
+
+    public void saisirCode2FA(String code) {
+        WebElement champ = champCode2FA();
+        champ.clear();
+        Demo.taper(driver, champ, code);
+        champ.sendKeys(org.openqa.selenium.Keys.ENTER);
+    }
+
+    /** Apres un code faux : on reste sur la page 2FA avec un message d'erreur. */
+    public String messageErreur2FA() {
+        String[] motsCles = {"incorrect", "invalide", "ne correspond", "n’est pas valide", "réessayer",
+                "isn’t right", "doesn’t match", "try again", "invalid"};
+        return wait.until(d -> {
+            for (WebElement el : d.findElements(By.xpath("//span|//div[not(*)]"))) {
+                String texte = el.getText();
+                for (String mot : motsCles) {
+                    if (texte != null && texte.toLowerCase().contains(mot) && el.isDisplayed()) {
+                        return texte.trim();
+                    }
+                }
+            }
+            return null;
+        });
+    }
+
+    /** Page d'accueil = plus de formulaire de connexion ni de page de verification. */
+    public boolean estSurPageAccueil(java.time.Duration delai) {
+        gererCaptcha();
+        try {
+            return new WebDriverWait(driver, delai).until(d -> {
+                String url = d.getCurrentUrl();
+                if (url.contains("remember_browser")) {
+                    // "Vous etes connecte(e). Faire confiance a cet appareil ?" : le Chrome de test est jetable,
+                    // on ne l'ajoute pas aux appareils de confiance si Facebook propose de refuser.
+                    if (!cliquerSiPresent("Ne pas faire confiance", "Pas maintenant", "Don’t trust", "Not now")) {
+                        cliquerSiPresent("Faire confiance à cet appareil", "Trust this device");
+                    }
+                    return false;
+                }
+                return url.contains("facebook.com") && !chemin(url).contains("/login")
+                        && !urlDoubleAuthentification(url) && d.findElements(CHAMP_MOT_DE_PASSE).isEmpty();
+            });
+        } catch (org.openqa.selenium.TimeoutException e) {
+            return false;
+        }
+    }
+
+    private WebElement premierVisible(By selecteur) {
+        for (WebElement el : driver.findElements(selecteur)) {
+            if (el.isDisplayed() && el.isEnabled()) {
+                return el;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Clique sur l'element visible dont le texte contient l'un des morceaux donnes.
+     * On prefere un element cliquable (bouton, option radio, lien) contenant ce texte, pour ne pas
+     * cliquer sur un titre ; sinon l'element qui porte directement le texte.
+     */
+    private boolean cliquerSiPresent(String... morceaux) {
+        for (String morceau : morceaux) {
+            String t = "contains(., \"" + morceau + "\")";
+            List<WebElement> candidats = new java.util.ArrayList<>(driver.findElements(By.xpath(
+                    "//*[@role='button' or self::button or @role='radio' or self::label or @role='link']"
+                            + "[.//text()[" + t + "]]")));
+            java.util.Collections.reverse(candidats); // le plus interieur d'abord
+            candidats.addAll(driver.findElements(By.xpath("//*[text()[" + t + "]]")));
+            for (WebElement el : candidats) {
+                try {
+                    if (el.isDisplayed()) {
+                        Demo.surligner(driver, el);
+                        ((org.openqa.selenium.JavascriptExecutor) driver).executeScript(
+                                "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();", el);
+                        return true;
+                    }
+                } catch (org.openqa.selenium.StaleElementReferenceException e) {
+                    // la page a change pendant la recherche : on essaie le suivant
+                }
+            }
+        }
+        return false;
     }
 
     /**
