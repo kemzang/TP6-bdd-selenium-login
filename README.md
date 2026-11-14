@@ -1,51 +1,49 @@
-# TP6 - BDD/Selenium sur un formulaire de connexion
+# TP6 - BDD/Selenium : connexion à Facebook
 
-## Pourquoi pas le vrai facebook.com ?
+Tests BDD (Cucumber + Selenium WebDriver) sur la page de connexion de
+**https://www.facebook.com/**. Un robot ouvre Chrome, remplit les champs,
+clique sur « Se connecter » et vérifie le résultat.
 
-La consigne initiale demandait de tester "la connexion sur notre compte
-Facebook". Automatiser une tentative de connexion - meme avec un mot de passe
-invalide - sur le vrai facebook.com pose deux problemes qui ne dependent pas
-de ce qui est demande par le professeur :
+## Scénarios
 
-- Les CGU de Facebook interdisent l'acces automatise/scripte a leurs pages
-  d'authentification.
-- Le TP doit tourner dans une pipeline GitHub Actions a chaque `push` : un
-  script qui frappe le vrai formulaire de connexion de Facebook a chaque push
-  est exactement le type de trafic que leurs systemes anti-bot sont concus
-  pour detecter et bloquer (risque de blocage d'IP/compte, CAPTCHA, etc.).
+| Scénario | Lancé par défaut | Ce qui est vérifié |
+|---|---|---|
+| Le formulaire de connexion est affiché | oui | champs e-mail, mot de passe et bouton visibles |
+| Refus - e-mail qui n'existe pas | oui | message d'erreur sous le champ e-mail, on reste sur la page |
+| Refus - tous les champs vides | oui | message d'erreur sous le champ e-mail, on reste sur la page |
+| Refus - e-mail vide | oui | message d'erreur sous le champ e-mail, on reste sur la page |
+| Refus - mot de passe vide | oui | message d'erreur sous le champ e-mail, on reste sur la page |
+| Succès - connexion avec mon compte (`@compte-reel`) | non | le formulaire disparaît, on arrive sur la page d'accueil |
+| Refus - mon e-mail + mauvais mot de passe (`@compte-reel`) | non | message d'erreur sous le champ mot de passe |
 
-Ce depot utilise donc **https://the-internet.herokuapp.com/login**, une
-fixture publique maintenue par Elemental Selenium / Sauce Labs, construite
-explicitement pour s'entrainer a l'automatisation Selenium (les identifiants
-de test sont affiches en clair sur la page elle-meme : `tomsmith` /
-`SuperSecretPassword!`). Les competences evaluees sont identiques : Gherkin,
-Selenium WebDriver, Page Object, assertions sur les cas de succes et
-d'echec.
+Les scénarios par défaut n'utilisent aucun vrai compte : uniquement des
+adresses en `@example.com`, un domaine réservé qui n'appartient à personne.
+N'utilisez pas d'identifiants inventés comme `abc` : ils peuvent correspondre
+au compte de quelqu'un d'autre.
 
 ## Structure
 
-- `src/test/resources/features/login.feature` - scenarios Gherkin (3 cas :
-  connexion valide, nom d'utilisateur invalide, mot de passe invalide).
-- `src/test/java/.../pages/LoginPage.java` - Page Object encapsulant les
-  selecteurs et actions Selenium.
-- `src/test/java/.../steps/Hooks.java` - demarre/ferme Chrome (headless par
-  defaut) avant/apres chaque scenario.
-- `src/test/java/.../steps/LoginSteps.java` - step definitions reliant le
-  Gherkin au Page Object.
-- `src/test/java/.../RunCucumberTest.java` - point d'entree JUnit Platform
-  qui decouvre et execute les `.feature`.
-- `.github/workflows/ci.yml` - execute `mvn test` (Chrome headless) a chaque
-  push.
+- `src/test/resources/features/login.feature` - scénarios Gherkin en français.
+- `src/test/java/.../pages/LoginPage.java` - Page Object (sélecteurs et actions sur la page Facebook).
+- `src/test/java/.../steps/LoginSteps.java` - step definitions (Gherkin vers Java).
+- `src/test/java/.../steps/Hooks.java` - démarre/ferme Chrome avant/après chaque scénario, capture d'écran en cas d'échec.
+- `src/test/java/.../RunCucumberTest.java` - point d'entrée JUnit Platform.
+- `src/test/resources/junit-platform.properties` - exclut `@compte-reel` par défaut.
+- `.github/workflows/ci.yml` - lance `mvn test` (Chrome headless) à chaque push.
 
-## Lancer les tests
+## Commandes
 
 ```bash
-mvn test
+mvn test                      # scénarios par défaut, Chrome invisible
+mvn test -Dheadless=false     # Chrome visible
+
+# Connexion avec un vrai compte (les identifiants restent dans le terminal,
+# jamais dans le code ni sur GitHub) :
+export FB_EMAIL="mon.email@exemple.com"
+export FB_PASSWORD="mon_mot_de_passe"
+mvn test -Dheadless=false -Dcucumber.filter.tags=@compte-reel
 ```
 
-Pour observer Chrome pendant l'execution (navigateur visible, utile en
-local) :
-
-```bash
-mvn test -Dheadless=false
-```
+Le scénario `@compte-reel` est à lancer ponctuellement : des connexions
+automatisées répétées peuvent déclencher une vérification de sécurité
+Facebook (CAPTCHA, code de confirmation).

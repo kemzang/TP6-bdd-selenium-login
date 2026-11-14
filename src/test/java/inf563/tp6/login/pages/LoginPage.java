@@ -7,48 +7,94 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
+import java.util.List;
 
-/** Page Object pour https://the-internet.herokuapp.com/login (fixture publique Selenium). */
+/** Page Object pour la page de connexion de Facebook (https://www.facebook.com/). */
 public class LoginPage {
 
-    private static final String URL = "https://the-internet.herokuapp.com/login";
+    private static final String URL = "https://www.facebook.com/";
+
+    // Facebook genere des id aleatoires : on cible donc les attributs stables (name, aria-label).
+    private static final By CHAMP_EMAIL = By.name("email");
+    private static final By CHAMP_MOT_DE_PASSE = By.name("pass");
+    private static final By BOUTON_SE_CONNECTER = By.cssSelector(
+            "[role='button'][aria-label='Se connecter'], button[name='login'], input[type='submit']");
+    // Apres un echec, Facebook marque le champ fautif avec aria-invalid="true".
+    private static final By CHAMP_EN_ERREUR = By.cssSelector("input[aria-invalid='true']");
+    // Banniere cookies (affichee surtout en Europe) : on la ferme si elle apparait.
+    private static final By BOUTON_COOKIES = By.xpath(
+            "//*[@role='button' or self::button][contains(., 'Autoriser tous les cookies')"
+                    + " or contains(., 'Refuser les cookies optionnels')"
+                    + " or contains(., 'Allow all cookies')"
+                    + " or contains(., 'Decline optional cookies')]");
 
     private final WebDriver driver;
     private final WebDriverWait wait;
 
     public LoginPage(WebDriver driver) {
         this.driver = driver;
-        this.wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        this.wait = new WebDriverWait(driver, Duration.ofSeconds(20));
     }
 
     public void open() {
         driver.get(URL);
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("username")));
+        fermerBanniereCookies();
+        wait.until(ExpectedConditions.visibilityOfElementLocated(CHAMP_EMAIL));
     }
 
-    public void login(String username, String password) {
-        driver.findElement(By.id("username")).sendKeys(username);
-        driver.findElement(By.id("password")).sendKeys(password);
-        driver.findElement(By.cssSelector("form button[type='submit']")).click();
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("flash")));
+    private void fermerBanniereCookies() {
+        List<WebElement> boutons = driver.findElements(BOUTON_COOKIES);
+        if (!boutons.isEmpty() && boutons.get(0).isDisplayed()) {
+            boutons.get(0).click();
+        }
     }
 
-    public boolean estSurLaZoneSecurisee() {
-        return driver.getCurrentUrl().endsWith("/secure");
+    public boolean formulaireEstAffiche() {
+        return driver.findElement(CHAMP_EMAIL).isDisplayed()
+                && driver.findElement(CHAMP_MOT_DE_PASSE).isDisplayed()
+                && driver.findElement(BOUTON_SE_CONNECTER).isDisplayed();
     }
 
-    public String messageFlash() {
-        WebElement flash = driver.findElement(By.id("flash"));
-        return flash.getText().replace("×", "").trim();
+    /** Remplit les champs et clique sur "Se connecter". */
+    public void login(String email, String motDePasse) {
+        WebElement champEmail = driver.findElement(CHAMP_EMAIL);
+        champEmail.clear();
+        champEmail.sendKeys(email);
+        WebElement champMdp = driver.findElement(CHAMP_MOT_DE_PASSE);
+        champMdp.clear();
+        champMdp.sendKeys(motDePasse);
+        driver.findElement(BOUTON_SE_CONNECTER).click();
     }
 
-    public boolean messageFlashEstUneErreur() {
-        String classes = driver.findElement(By.id("flash")).getAttribute("class");
-        return classes != null && classes.contains("error");
+    /** Attend qu'un champ soit marque en erreur et renvoie le message associe. */
+    public String messageErreur() {
+        WebElement champ = wait.until(ExpectedConditions.visibilityOfElementLocated(CHAMP_EN_ERREUR));
+        String idMessage = champ.getAttribute("aria-describedby");
+        if (idMessage == null || idMessage.isBlank()) {
+            return "";
+        }
+        return driver.findElement(By.id(idMessage)).getText().trim();
     }
 
-    public boolean messageFlashEstUnSucces() {
-        String classes = driver.findElement(By.id("flash")).getAttribute("class");
-        return classes != null && classes.contains("success");
+    public String nomDuChampEnErreur() {
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(CHAMP_EN_ERREUR)).getAttribute("name");
+    }
+
+    /** Connecte = le formulaire de connexion a disparu de la page. */
+    public boolean estConnecte() {
+        try {
+            return wait.until(ExpectedConditions.invisibilityOfElementLocated(CHAMP_MOT_DE_PASSE));
+        } catch (org.openqa.selenium.TimeoutException e) {
+            return false;
+        }
+    }
+
+    public String urlCourante() {
+        return driver.getCurrentUrl();
+    }
+
+    public boolean estToujoursSurLaPageDeConnexion() {
+        return !driver.findElements(CHAMP_MOT_DE_PASSE).isEmpty()
+                && driver.findElement(CHAMP_MOT_DE_PASSE).isDisplayed();
     }
 }

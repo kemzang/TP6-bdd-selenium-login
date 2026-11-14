@@ -1,26 +1,45 @@
 # language: fr
-# Site cible : https://the-internet.herokuapp.com/login - fixture publique
-# maintenue par Elemental Selenium/Sauce Labs, construite exprès pour
-# l'entrainement a l'automatisation (identifiants de test affiches sur la
-# page elle-meme). Utilise a la place d'un vrai compte Facebook pour ne pas
-# automatiser une authentification sur un service tiers en production.
-Fonctionnalité: Connexion sur un formulaire d'authentification
-  Afin de valider le comportement d'un formulaire de connexion
+# Site cible : https://www.facebook.com/ (page de connexion).
+#
+# Scenarios sans tag : aucun vrai compte, uniquement des e-mails en @example.com
+# (domaine reserve, qui ne peut appartenir a personne). Lances a chaque "mvn test" et en CI.
+#
+# Scenarios @compte-reel : utilisent un vrai compte (variables FB_EMAIL / FB_PASSWORD).
+# Lances uniquement sur demande : mvn test -Dcucumber.filter.tags=@compte-reel
+Fonctionnalité: Connexion à Facebook
+  Afin de valider le comportement du formulaire de connexion de Facebook
   En tant que testeur
-  Je veux automatiser des scenarios de connexion avec Selenium
+  Je veux automatiser les cas de succès et d'échec de la connexion avec Selenium
 
   Contexte:
-    Soit la page de connexion est ouverte
+    Soit la page de connexion Facebook est ouverte
 
-  Scénario: Connexion avec des identifiants valides
-    Quand je me connecte avec l'utilisateur "tomsmith" et le mot de passe "SuperSecretPassword!"
-    Alors je suis redirigé vers la zone sécurisée
-    Et un message de succès est affiché
+  Scénario: Le formulaire de connexion est affiché
+    Alors le formulaire de connexion est affiché
 
-  Scénario: Connexion avec un nom d'utilisateur invalide
-    Quand je me connecte avec l'utilisateur "mauvais_utilisateur" et le mot de passe "SuperSecretPassword!"
-    Alors un message d'erreur indiquant que le nom d'utilisateur est invalide est affiché
+  Scénario: Refus - e-mail qui n'existe pas
+    Quand je me connecte avec l'e-mail "test.inf563.tp6@example.com" et le mot de passe "mauvais_mot_de_passe"
+    Alors un message d'erreur est affiché sous le champ "email"
+    Et je reste sur la page de connexion
 
-  Scénario: Connexion avec un mot de passe invalide
-    Quand je me connecte avec l'utilisateur "tomsmith" et le mot de passe "mauvais_mot_de_passe"
-    Alors un message d'erreur indiquant que le mot de passe est invalide est affiché
+  Plan du scénario: Refus - champs vides (<cas>)
+    Quand je me connecte avec l'e-mail "<email>" et le mot de passe "<mot_de_passe>"
+    Alors un message d'erreur est affiché sous le champ "email"
+    Et je reste sur la page de connexion
+
+    Exemples:
+      | cas                    | email                       | mot_de_passe |
+      | tous les champs vides  |                             |              |
+      | e-mail vide            |                             | unMotDePasse |
+      | mot de passe vide      | test.inf563.tp6@example.com |              |
+
+  @compte-reel
+  Scénario: Succès - connexion avec mon compte
+    Quand je me connecte avec mon compte Facebook
+    Alors je suis connecté et redirigé vers ma page d'accueil
+
+  @compte-reel
+  Scénario: Refus - mon e-mail avec un mauvais mot de passe
+    Quand je me connecte avec mon e-mail et le mot de passe "mauvais_mot_de_passe_123"
+    Alors un message d'erreur est affiché sous le champ "pass"
+    Et je reste sur la page de connexion
