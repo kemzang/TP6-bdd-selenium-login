@@ -46,6 +46,8 @@ public class Hooks {
         }
         // Capture d'ecran jointe au rapport quand un scenario echoue.
         if (scenario.isFailed()) {
+            System.out.println("ECHEC sur l'URL : " + driver.getCurrentUrl()
+                    + " | titre : " + driver.getTitle());
             byte[] capture = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
             scenario.attach(capture, "image/png", "capture-echec");
         }
