@@ -9,12 +9,12 @@ clique sur « Se connecter » et vérifie le résultat.
 | Scénario | Lancé par défaut | Ce qui est vérifié |
 |---|---|---|
 | Le formulaire de connexion est affiché | oui | champs e-mail, mot de passe et bouton visibles |
-| Refus - e-mail qui n'existe pas | oui | message d'erreur sous le champ e-mail, on reste sur la page |
-| Refus - tous les champs vides | oui | message d'erreur sous le champ e-mail, on reste sur la page |
-| Refus - e-mail vide | oui | message d'erreur sous le champ e-mail, on reste sur la page |
-| Refus - mot de passe vide | oui | message d'erreur sous le champ e-mail, on reste sur la page |
+| Refus - e-mail qui n'existe pas | oui | message d'erreur affiché, on reste sur la page |
+| Refus - tous les champs vides | oui | message d'erreur affiché, on reste sur la page |
+| Refus - e-mail vide | oui | message d'erreur affiché, on reste sur la page |
+| Refus - mot de passe vide | oui | message d'erreur affiché, on reste sur la page |
 | Succès - connexion avec mon compte (`@compte-reel`) | non | le formulaire disparaît, on arrive sur la page d'accueil |
-| Refus - mon e-mail + mauvais mot de passe (`@compte-reel`) | non | message d'erreur sous le champ mot de passe |
+| Refus - mon e-mail + mauvais mot de passe (`@compte-reel`) | non | message d'erreur affiché, on reste sur la page |
 
 Les scénarios par défaut n'utilisent aucun vrai compte : uniquement des
 adresses en `@example.com`, un domaine réservé qui n'appartient à personne.

@@ -21,6 +21,11 @@ public class LoginPage {
             "[role='button'][aria-label='Se connecter'], button[name='login'], input[type='submit']");
     // Apres un echec, Facebook marque le champ fautif avec aria-invalid="true".
     private static final By CHAMP_EN_ERREUR = By.cssSelector("input[aria-invalid='true']");
+    // Variante "bandeau" : bloc de texte au-dessus des champs.
+    private static final By BANDEAU_ERREUR = By.xpath(
+            "//span[contains(., 'informations de connexion') or contains(., 'incorrect')"
+                    + " or contains(., 'pas associé') or contains(., 'incorrect')"
+                    + " or contains(., 'isn’t connected') or contains(., 'credentials')]");
     // Banniere cookies (affichee surtout en Europe) : on la ferme si elle apparait.
     private static final By BOUTON_COOKIES = By.xpath(
             "//*[@role='button' or self::button][contains(., 'Autoriser tous les cookies')"
@@ -66,18 +71,30 @@ public class LoginPage {
         driver.findElement(BOUTON_SE_CONNECTER).click();
     }
 
-    /** Attend qu'un champ soit marque en erreur et renvoie le message associe. */
+    /**
+     * Attend le message d'erreur de Facebook et le renvoie. Facebook l'affiche de deux facons
+     * selon le pays / la variante de page servie :
+     *  - sous le champ fautif (champ marque aria-invalid="true", message relie par aria-describedby) ;
+     *  - dans un bandeau en haut du formulaire ("Les informations de connexion ... sont incorrectes").
+     */
     public String messageErreur() {
-        WebElement champ = wait.until(ExpectedConditions.visibilityOfElementLocated(CHAMP_EN_ERREUR));
-        String idMessage = champ.getAttribute("aria-describedby");
-        if (idMessage == null || idMessage.isBlank()) {
-            return "";
-        }
-        return driver.findElement(By.id(idMessage)).getText().trim();
-    }
-
-    public String nomDuChampEnErreur() {
-        return wait.until(ExpectedConditions.visibilityOfElementLocated(CHAMP_EN_ERREUR)).getAttribute("name");
+        return wait.until(d -> {
+            for (WebElement champ : d.findElements(CHAMP_EN_ERREUR)) {
+                String idMessage = champ.getAttribute("aria-describedby");
+                if (champ.isDisplayed() && idMessage != null && !d.findElements(By.id(idMessage)).isEmpty()) {
+                    String texte = d.findElement(By.id(idMessage)).getText().trim();
+                    if (!texte.isEmpty()) {
+                        return texte;
+                    }
+                }
+            }
+            for (WebElement bandeau : d.findElements(BANDEAU_ERREUR)) {
+                if (bandeau.isDisplayed() && !bandeau.getText().isBlank()) {
+                    return bandeau.getText().trim();
+                }
+            }
+            return null; // pas encore affiche : on reessaie
+        });
     }
 
     /** Connecte = le formulaire de connexion a disparu de la page. */

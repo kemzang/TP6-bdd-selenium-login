@@ -5,7 +5,6 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -50,9 +49,8 @@ public class LoginSteps {
         return valeur;
     }
 
-    @Then("un message d'erreur est affiché sous le champ {string}")
-    public void unMessageDErreurEstAffiche(String champ) {
-        assertEquals(champ, loginPage.nomDuChampEnErreur(), "le champ en erreur n'est pas le bon");
+    @Then("un message d'erreur est affiché")
+    public void unMessageDErreurEstAffiche() {
         String message = loginPage.messageErreur();
         System.out.println("Message affiche par Facebook : " + message);
         assertFalse(message.isEmpty(), "Facebook devrait afficher un message d'erreur");

@@ -19,12 +19,12 @@ Fonctionnalité: Connexion à Facebook
 
   Scénario: Refus - e-mail qui n'existe pas
     Quand je me connecte avec l'e-mail "test.inf563.tp6@example.com" et le mot de passe "mauvais_mot_de_passe"
-    Alors un message d'erreur est affiché sous le champ "email"
+    Alors un message d'erreur est affiché
     Et je reste sur la page de connexion
 
   Plan du scénario: Refus - champs vides (<cas>)
     Quand je me connecte avec l'e-mail "<email>" et le mot de passe "<mot_de_passe>"
-    Alors un message d'erreur est affiché sous le champ "email"
+    Alors un message d'erreur est affiché
     Et je reste sur la page de connexion
 
     Exemples:
@@ -41,5 +41,5 @@ Fonctionnalité: Connexion à Facebook
   @compte-reel
   Scénario: Refus - mon e-mail avec un mauvais mot de passe
     Quand je me connecte avec mon e-mail et le mot de passe "mauvais_mot_de_passe_123"
-    Alors un message d'erreur est affiché sous le champ "pass"
+    Alors un message d'erreur est affiché
     Et je reste sur la page de connexion
